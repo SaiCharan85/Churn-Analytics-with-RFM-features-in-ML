@@ -1,0 +1,95 @@
+# Churn Analytics - Git Ignore File
+
+# ============================================================================
+# DATA & CREDENTIALS (SENSITIVE)
+# ============================================================================
+# Raw data files
+Training\ data/
+Training data/
+*.csv
+*.xlsx
+*.xls
+bank_ml_features.csv
+
+# Environment variables & secrets
+.env
+.env.local
+.env.*.local
+secrets.json
+config.json
+credentials.json
+
+# API Keys & Tokens
+*.key
+*.pem
+*.p12
+credentials/
+
+# ============================================================================
+# PYTHON & VIRTUAL ENVIRONMENTS
+# ============================================================================
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Pip
+*.egg-info/
+dist/
+build/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+
+# ============================================================================
+# IDE & EDITOR
+# ============================================================================
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+out/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# ============================================================================
+# OS-SPECIFIC
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini

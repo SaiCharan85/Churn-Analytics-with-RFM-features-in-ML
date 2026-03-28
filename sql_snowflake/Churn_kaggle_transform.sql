@@ -1,0 +1,285 @@
+-- ============================================================
+-- CHURN_KAGGLE_TRANSFORM.SQL
+-- Populates downstream tables from BANK_CHURN_RAW
+-- ============================================================
+
+USE WAREHOUSE CHURN_WH;
+USE DATABASE CHURN_ANALYTICS;
+USE SCHEMA ANALYTICS;
+
+-- ============================================================
+-- 0. VERIFY RAW DATA
+-- ============================================================
+SELECT COUNT(*) AS RAW_ROW_COUNT
+FROM BANK_CHURN_RAW;
+
+-- ============================================================
+-- 1. POPULATE BANK_RFM_SCORES
+-- ============================================================
+TRUNCATE TABLE BANK_RFM_SCORES;
+
+INSERT INTO BANK_RFM_SCORES (
+    CUSTOMER_ID,
+    CUSTOMERID,
+    RECENCY,
+    FREQUENCY,
+    MONETARY,
+    BALANCE,
+    ESTIMATEDSALARY,
+    CREDITSCORE,
+    AGE,
+    TENURE,
+    GEOGRAPHY,
+    GENDER,
+    HASCRCARD,
+    NUMOFPRODUCTS,
+    ISACTIVEMEMBER,
+    EXITED,
+    R_SCORE,
+    F_SCORE,
+    M_SCORE,
+    RFM_TOTAL,
+    RFM_SEGMENT
+)
+WITH rfm_base AS (
+    SELECT
+        ID::VARCHAR AS CUSTOMER_ID,
+        CUSTOMERID,
+
+        CASE
+            WHEN ISACTIVEMEMBER = 1 AND TENURE >= 5 THEN 5
+            WHEN ISACTIVEMEMBER = 1 AND TENURE >= 3 THEN 4
+            WHEN ISACTIVEMEMBER = 1 AND TENURE < 3 THEN 3
+            WHEN ISACTIVEMEMBER = 0 AND TENURE >= 5 THEN 2
+            ELSE 1
+        END AS R_SCORE,
+
+        NTILE(5) OVER (
+            ORDER BY (NUMOFPRODUCTS + HASCRCARD + ISACTIVEMEMBER)
+        ) AS F_SCORE,
+
+        NTILE(5) OVER (
+            ORDER BY (BALANCE * 0.6 + ESTIMATEDSALARY * 0.3 + CREDITSCORE * 0.1)
+        ) AS M_SCORE,
+
+        TENURE AS RECENCY,
+        (NUMOFPRODUCTS + HASCRCARD + ISACTIVEMEMBER) AS FREQUENCY,
+        (BALANCE * 0.6 + ESTIMATEDSALARY * 0.3 + CREDITSCORE * 0.1) AS MONETARY,
+
+        BALANCE,
+        ESTIMATEDSALARY,
+        CREDITSCORE,
+        AGE,
+        TENURE,
+        GEOGRAPHY,
+        GENDER,
+        HASCRCARD,
+        NUMOFPRODUCTS,
+        ISACTIVEMEMBER,
+        EXITED
+    FROM BANK_CHURN_RAW
+)
+SELECT
+    CUSTOMER_ID,
+    CUSTOMERID,
+    RECENCY,
+    FREQUENCY,
+    MONETARY,
+    BALANCE,
+    ESTIMATEDSALARY,
+    CREDITSCORE,
+    AGE,
+    TENURE,
+    GEOGRAPHY,
+    GENDER,
+    HASCRCARD,
+    NUMOFPRODUCTS,
+    ISACTIVEMEMBER,
+    EXITED,
+    R_SCORE,
+    F_SCORE,
+    M_SCORE,
+    (R_SCORE + F_SCORE + M_SCORE) AS RFM_TOTAL,
+    CASE
+        WHEN R_SCORE >= 4 AND F_SCORE >= 4 THEN 'Champions'
+        WHEN R_SCORE >= 3 AND F_SCORE >= 3 THEN 'Loyal'
+        WHEN R_SCORE >= 4 AND F_SCORE <= 2 THEN 'Recent'
+        WHEN R_SCORE <= 2 AND F_SCORE >= 4 THEN 'At Risk'
+        WHEN R_SCORE <= 2 AND F_SCORE <= 2 THEN 'Hibernating'
+        ELSE 'Needs Attention'
+    END AS RFM_SEGMENT
+FROM rfm_base;
+
+-- ============================================================
+-- 2. POPULATE BANK_COHORT_RETENTION
+-- ============================================================
+TRUNCATE TABLE BANK_COHORT_RETENTION;
+
+INSERT INTO BANK_COHORT_RETENTION (
+    GEOGRAPHY,
+    AGE_GROUP,
+    COHORT_SIZE,
+    CHURNED_COUNT,
+    CHURN_RATE_PCT,
+    AVG_TENURE,
+    CHURN_0_2YR_PCT,
+    CHURN_0_5YR_PCT,
+    CHURN_0_10YR_PCT
+)
+WITH cohorts AS (
+    SELECT
+        GEOGRAPHY,
+        CASE
+            WHEN AGE < 30 THEN '18-29'
+            WHEN AGE < 40 THEN '30-39'
+            WHEN AGE < 50 THEN '40-49'
+            WHEN AGE < 60 THEN '50-59'
+            ELSE '60+'
+        END AS AGE_GROUP,
+        TENURE,
+        EXITED
+    FROM BANK_CHURN_RAW
+)
+SELECT
+    GEOGRAPHY,
+    AGE_GROUP,
+    COUNT(*) AS COHORT_SIZE,
+    SUM(EXITED) AS CHURNED_COUNT,
+    ROUND(AVG(EXITED) * 100, 2) AS CHURN_RATE_PCT,
+    ROUND(AVG(TENURE), 2) AS AVG_TENURE,
+    ROUND(AVG(CASE WHEN TENURE <= 2 THEN EXITED END) * 100, 2) AS CHURN_0_2YR_PCT,
+    ROUND(AVG(CASE WHEN TENURE <= 5 THEN EXITED END) * 100, 2) AS CHURN_0_5YR_PCT,
+    ROUND(AVG(CASE WHEN TENURE <= 10 THEN EXITED END) * 100, 2) AS CHURN_0_10YR_PCT
+FROM cohorts
+GROUP BY GEOGRAPHY, AGE_GROUP;
+
+-- ============================================================
+-- 3. POPULATE BANK_ML_FEATURES
+-- ============================================================
+TRUNCATE TABLE BANK_ML_FEATURES;
+
+INSERT INTO BANK_ML_FEATURES (
+    CUSTOMER_ID,
+    CUSTOMERID,
+    AGE,
+    GENDER,
+    GEOGRAPHY,
+    CREDITSCORE,
+    TENURE,
+    BALANCE,
+    NUMOFPRODUCTS,
+    HASCRCARD,
+    ISACTIVEMEMBER,
+    ESTIMATEDSALARY,
+    R_SCORE,
+    F_SCORE,
+    M_SCORE,
+    RFM_TOTAL,
+    RFM_SEGMENT,
+    RECENCY,
+    FREQUENCY,
+    MONETARY,
+    BALANCE_SALARY_RATIO,
+    CREDIT_AGE_RATIO,
+    BALANCE_PER_PRODUCT,
+    TENURE_AGE_RATIO,
+    ACTIVE_X_PRODUCTS,
+    CREDIT_X_ACTIVE,
+    BALANCE_X_ACTIVE,
+    HAS_BALANCE,
+    SENIOR_CUSTOMER,
+    LONG_TENURE,
+    RFM_X_CREDIT,
+    RFM_X_BALANCE,
+    COHORT_CHURN_RATE,
+    COHORT_AVG_TENURE,
+    COHORT_SIZE,
+    IS_CHURNED
+)
+SELECT
+    r.CUSTOMER_ID,
+    r.CUSTOMERID,
+    r.AGE,
+    r.GENDER,
+    r.GEOGRAPHY,
+    r.CREDITSCORE,
+    r.TENURE,
+    r.BALANCE,
+    r.NUMOFPRODUCTS,
+    r.HASCRCARD,
+    r.ISACTIVEMEMBER,
+    r.ESTIMATEDSALARY,
+    r.R_SCORE,
+    r.F_SCORE,
+    r.M_SCORE,
+    r.RFM_TOTAL,
+    r.RFM_SEGMENT,
+    r.RECENCY,
+    r.FREQUENCY,
+    r.MONETARY,
+    ROUND(r.BALANCE / NULLIF(r.ESTIMATEDSALARY, 0), 4) AS BALANCE_SALARY_RATIO,
+    ROUND(r.CREDITSCORE / NULLIF(r.AGE, 0), 4) AS CREDIT_AGE_RATIO,
+    ROUND(r.BALANCE / NULLIF(r.NUMOFPRODUCTS, 0), 2) AS BALANCE_PER_PRODUCT,
+    ROUND(r.TENURE / NULLIF(r.AGE, 0), 4) AS TENURE_AGE_RATIO,
+    r.ISACTIVEMEMBER * r.NUMOFPRODUCTS AS ACTIVE_X_PRODUCTS,
+    r.CREDITSCORE * r.ISACTIVEMEMBER AS CREDIT_X_ACTIVE,
+    r.BALANCE * r.ISACTIVEMEMBER AS BALANCE_X_ACTIVE,
+    CASE WHEN r.BALANCE > 0 THEN 1 ELSE 0 END AS HAS_BALANCE,
+    CASE WHEN r.AGE > 45 THEN 1 ELSE 0 END AS SENIOR_CUSTOMER,
+    CASE WHEN r.TENURE > 5 THEN 1 ELSE 0 END AS LONG_TENURE,
+    r.RFM_TOTAL * r.CREDITSCORE AS RFM_X_CREDIT,
+    r.RFM_TOTAL * r.BALANCE AS RFM_X_BALANCE,
+    COALESCE(c.CHURN_RATE_PCT, 0) AS COHORT_CHURN_RATE,
+    COALESCE(c.AVG_TENURE, 0) AS COHORT_AVG_TENURE,
+    COALESCE(c.COHORT_SIZE, 0) AS COHORT_SIZE,
+    r.EXITED AS IS_CHURNED
+FROM BANK_RFM_SCORES r
+LEFT JOIN BANK_COHORT_RETENTION c
+    ON r.GEOGRAPHY = c.GEOGRAPHY
+   AND CASE
+           WHEN r.AGE < 30 THEN '18-29'
+           WHEN r.AGE < 40 THEN '30-39'
+           WHEN r.AGE < 50 THEN '40-49'
+           WHEN r.AGE < 60 THEN '50-59'
+           ELSE '60+'
+       END = c.AGE_GROUP;
+
+-- ============================================================
+-- 4. VERIFY ALL TABLES
+-- ============================================================
+SELECT 'BANK_CHURN_RAW' AS TABLE_NAME, COUNT(*) AS ROW_COUNT FROM BANK_CHURN_RAW
+UNION ALL
+SELECT 'BANK_RFM_SCORES', COUNT(*) FROM BANK_RFM_SCORES
+UNION ALL
+SELECT 'BANK_COHORT_RETENTION', COUNT(*) FROM BANK_COHORT_RETENTION
+UNION ALL
+SELECT 'BANK_ML_FEATURES', COUNT(*) FROM BANK_ML_FEATURES;
+
+-- ============================================================
+-- 5. CHECK CHURN DISTRIBUTION
+-- ============================================================
+SELECT
+    IS_CHURNED,
+    COUNT(*) AS CNT,
+    ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) AS PCT
+FROM BANK_ML_FEATURES
+GROUP BY IS_CHURNED
+ORDER BY IS_CHURNED;
+
+-- ============================================================
+-- 6. CHECK RFM SEGMENT CHURN
+-- ============================================================
+SELECT
+    RFM_SEGMENT,
+    COUNT(*) AS CUSTOMERS,
+    ROUND(AVG(IS_CHURNED) * 100, 2) AS CHURN_RATE_PCT
+FROM BANK_ML_FEATURES
+GROUP BY RFM_SEGMENT
+ORDER BY CHURN_RATE_PCT DESC;
+
+-- ============================================================
+-- 7. SAMPLE OUTPUT
+-- ============================================================
+SELECT *
+FROM BANK_ML_FEATURES
+LIMIT 50;
