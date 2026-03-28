@@ -1,0 +1,426 @@
+// ============================================================================
+// CHURN ANALYTICS - POWER BI DAX EXPRESSIONS
+// All measures and columns for Churn Analytics Dashboard
+// Source: Snowflake CHURN_ANALYTICS.ANALYTICS schema
+// ============================================================================
+
+// ============================================================================
+// 1. BASIC METRICS
+// ============================================================================
+
+Total Customers = COUNTA(BANK_ML_FEATURES[CUSTOMERID])
+
+Total Churned = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[IS_CHURNED] = 1
+)
+
+Total Retained = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[IS_CHURNED] = 0
+)
+
+Churn Rate = 
+    DIVIDE(
+        [Total Churned],
+        [Total Customers],
+        0
+    )
+
+Retention Rate = 1 - [Churn Rate]
+
+// ============================================================================
+// 2. RFM METRICS
+// ============================================================================
+
+Avg R Score = AVERAGE(BANK_ML_FEATURES[R_SCORE])
+
+Avg F Score = AVERAGE(BANK_ML_FEATURES[F_SCORE])
+
+Avg M Score = AVERAGE(BANK_ML_FEATURES[M_SCORE])
+
+Avg RFM Total = AVERAGE(BANK_ML_FEATURES[RFM_TOTAL])
+
+High Value RFM = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_TOTAL] >= 8
+)
+
+Medium Value RFM = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_TOTAL] >= 5,
+    BANK_ML_FEATURES[RFM_TOTAL] < 8
+)
+
+Low Value RFM = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_TOTAL] < 5
+)
+
+// ============================================================================
+// 3. RFM SEGMENT METRICS
+// ============================================================================
+
+Champions Count = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_SEGMENT] = "Champions"
+)
+
+Loyal Count = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_SEGMENT] = "Loyal"
+)
+
+At Risk Count = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_SEGMENT] = "At Risk"
+)
+
+Hibernating Count = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_SEGMENT] = "Hibernating"
+)
+
+Needs Attention Count = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_SEGMENT] = "Needs Attention"
+)
+
+Recent Count = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_SEGMENT] = "Recent"
+)
+
+// ============================================================================
+// 4. CHURN PREDICTION RISK TIERS
+// ============================================================================
+
+High Risk Customers = CALCULATE(
+    COUNTA(CHURN_SCORES[CUSTOMER_ID]),
+    CHURN_SCORES[RISK_TIER] = "HIGH"
+)
+
+Medium Risk Customers = CALCULATE(
+    COUNTA(CHURN_SCORES[CUSTOMER_ID]),
+    CHURN_SCORES[RISK_TIER] = "MEDIUM"
+)
+
+Low Risk Customers = CALCULATE(
+    COUNTA(CHURN_SCORES[CUSTOMER_ID]),
+    CHURN_SCORES[RISK_TIER] = "LOW"
+)
+
+Avg Churn Probability = AVERAGE(CHURN_SCORES[CHURN_PROBABILITY])
+
+Max Churn Probability = MAX(CHURN_SCORES[CHURN_PROBABILITY])
+
+Min Churn Probability = MIN(CHURN_SCORES[CHURN_PROBABILITY])
+
+// ============================================================================
+// 5. MODEL PERFORMANCE METRICS (Hard-coded from training)
+// ============================================================================
+
+Model Accuracy = 0.8481
+
+Model ROC AUC = 0.8867
+
+Model Precision = 0.6282
+
+Model Recall = 0.6916
+
+Model F1 Score = 0.6584
+
+Model Threshold = 0.48
+
+// ============================================================================
+// 6. DEMOGRAPHIC METRICS
+// ============================================================================
+
+Avg Customer Age = AVERAGE(BANK_ML_FEATURES[AGE])
+
+Avg Tenure = AVERAGE(BANK_ML_FEATURES[TENURE])
+
+Avg Account Balance = AVERAGE(BANK_ML_FEATURES[BALANCE])
+
+Avg Estimated Salary = AVERAGE(BANK_ML_FEATURES[ESTIMATEDSALARY])
+
+Avg Credit Score = AVERAGE(BANK_ML_FEATURES[CREDITSCORE])
+
+Senior Citizens = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[SENIOR_CUSTOMER] = 1
+)
+
+Active Members = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[ISACTIVEMEMBER] = 1
+)
+
+Long Tenure Customers = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[LONG_TENURE] = 1
+)
+
+Customers with Balance = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[HAS_BALANCE] = 1
+)
+
+// ============================================================================
+// 7. GEOGRAPHIC METRICS
+// ============================================================================
+
+France Customers = CALCULATE(
+    [Total Customers],
+    BANK_ML_FEATURES[GEOGRAPHY] = "France"
+)
+
+Germany Customers = CALCULATE(
+    [Total Customers],
+    BANK_ML_FEATURES[GEOGRAPHY] = "Germany"
+)
+
+Spain Customers = CALCULATE(
+    [Total Customers],
+    BANK_ML_FEATURES[GEOGRAPHY] = "Spain"
+)
+
+France Churn Rate = CALCULATE(
+    [Churn Rate],
+    BANK_ML_FEATURES[GEOGRAPHY] = "France"
+)
+
+Germany Churn Rate = CALCULATE(
+    [Churn Rate],
+    BANK_ML_FEATURES[GEOGRAPHY] = "Germany"
+)
+
+Spain Churn Rate = CALCULATE(
+    [Churn Rate],
+    BANK_ML_FEATURES[GEOGRAPHY] = "Spain"
+)
+
+// ============================================================================
+// 8. PRODUCT & ENGAGEMENT METRICS
+// ============================================================================
+
+Avg Products per Customer = AVERAGE(BANK_ML_FEATURES[NUMOFPRODUCTS])
+
+Multi Product Customers = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[NUMOFPRODUCTS] > 1
+)
+
+Single Product Customers = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[NUMOFPRODUCTS] = 1
+)
+
+Customers with Credit Card = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[HASCRCARD] = 1
+)
+
+// ============================================================================
+// 9. COHORT ANALYSIS METRICS
+// ============================================================================
+
+Avg Cohort Churn Rate = AVERAGE(BANK_ML_FEATURES[COHORT_CHURN_RATE])
+
+Avg Cohort Tenure = AVERAGE(BANK_ML_FEATURES[COHORT_AVG_TENURE])
+
+Avg Cohort Size = AVERAGE(BANK_ML_FEATURES[COHORT_SIZE])
+
+// ============================================================================
+// 10. RECENCY, FREQUENCY, MONETARY
+// ============================================================================
+
+Avg Recency = AVERAGE(BANK_ML_FEATURES[RECENCY])
+
+Avg Frequency = AVERAGE(BANK_ML_FEATURES[FREQUENCY])
+
+Avg Monetary = AVERAGE(BANK_ML_FEATURES[MONETARY])
+
+// ============================================================================
+// 11. INTERACTION & ENGINEERED FEATURE METRICS
+// ============================================================================
+
+Avg Active x Products = AVERAGE(BANK_ML_FEATURES[ACTIVE_X_PRODUCTS])
+
+Avg Credit x Active = AVERAGE(BANK_ML_FEATURES[CREDIT_X_ACTIVE])
+
+Avg Balance x Active = AVERAGE(BANK_ML_FEATURES[BALANCE_X_ACTIVE])
+
+Avg Balance Salary Ratio = AVERAGE(BANK_ML_FEATURES[BALANCE_SALARY_RATIO])
+
+Avg Credit Age Ratio = AVERAGE(BANK_ML_FEATURES[CREDIT_AGE_RATIO])
+
+Avg Balance per Product = AVERAGE(BANK_ML_FEATURES[BALANCE_PER_PRODUCT])
+
+Avg Tenure Age Ratio = AVERAGE(BANK_ML_FEATURES[TENURE_AGE_RATIO])
+
+// ============================================================================
+// 12. RISK FLAG METRICS
+// ============================================================================
+
+Senior Inactive Customers = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[SENIOR_CUSTOMER] = 1,
+    BANK_ML_FEATURES[ISACTIVEMEMBER] = 0
+)
+
+Low RFM Flag Count = CALCULATE(
+    COUNTA(BANK_ML_FEATURES[CUSTOMERID]),
+    BANK_ML_FEATURES[RFM_TOTAL] <= 6
+)
+
+// ============================================================================
+// 13. CONDITIONAL METRICS & PERCENTAGES
+// ============================================================================
+
+Churn Rate % = [Churn Rate] * 100
+
+Retention Rate % = [Retention Rate] * 100
+
+Churn Rate by Segment = 
+    DIVIDE(
+        CALCULATE([Total Churned], ALLEXCEPT(BANK_ML_FEATURES, BANK_ML_FEATURES[RFM_SEGMENT])),
+        CALCULATE([Total Customers], ALLEXCEPT(BANK_ML_FEATURES, BANK_ML_FEATURES[RFM_SEGMENT])),
+        0
+    )
+
+Churn Rate by Geography = 
+    DIVIDE(
+        CALCULATE([Total Churned], ALLEXCEPT(BANK_ML_FEATURES, BANK_ML_FEATURES[GEOGRAPHY])),
+        CALCULATE([Total Customers], ALLEXCEPT(BANK_ML_FEATURES, BANK_ML_FEATURES[GEOGRAPHY])),
+        0
+    )
+
+Churn Rate by Age Group = 
+    DIVIDE(
+        CALCULATE([Total Churned], ALLEXCEPT(BANK_COHORT_RETENTION, BANK_COHORT_RETENTION[AGE_GROUP])),
+        CALCULATE([Total Customers], ALLEXCEPT(BANK_COHORT_RETENTION, BANK_COHORT_RETENTION[AGE_GROUP])),
+        0
+    )
+
+// ============================================================================
+// 14. CALCULATION GROUP (Optional - for alternating measures)
+// ============================================================================
+
+// Model Comparison Calculation (for comparing outputs vs outputs_train)
+Ensemble AUC = 0.8867
+XGBoost AUC = 0.8856
+ANN AUC = 0.8830
+LightGBM AUC = 0.8845
+
+// ============================================================================
+// 15. CUMULATIVE & RUNNING TOTALS
+// ============================================================================
+
+Cumulative Customers = 
+    CALCULATE(
+        [Total Customers],
+        FILTER(
+            ALL(BANK_ML_FEATURES[CUSTOMERID]),
+            BANK_ML_FEATURES[CUSTOMERID] <= MAX(BANK_ML_FEATURES[CUSTOMERID])
+        )
+    )
+
+Running Churn Count = 
+    CALCULATE(
+        [Total Churned],
+        FILTER(
+            ALL(BANK_ML_FEATURES[CUSTOMERID]),
+            BANK_ML_FEATURES[CUSTOMERID] <= MAX(BANK_ML_FEATURES[CUSTOMERID])
+        )
+    )
+
+// ============================================================================
+// 16. UTILITY MEASURES
+// ============================================================================
+
+Measure Count = COUNTA(BANK_ML_FEATURES[CUSTOMERID])
+
+Distinct Segments = DISTINCTCOUNT(BANK_ML_FEATURES[RFM_SEGMENT])
+
+Distinct Geographies = DISTINCTCOUNT(BANK_ML_FEATURES[GEOGRAPHY])
+
+Is High Risk = IF(
+    AVERAGE(CHURN_SCORES[CHURN_PROBABILITY]) >= 0.70,
+    "HIGH",
+    IF(
+        AVERAGE(CHURN_SCORES[CHURN_PROBABILITY]) >= 0.40,
+        "MEDIUM",
+        "LOW"
+    )
+)
+
+// ============================================================================
+// 17. KPI INDICATORS
+// ============================================================================
+
+Churn Alert = 
+    IF(
+        [Churn Rate] > 0.25,
+        "🔴 CRITICAL (>25%)",
+        IF(
+            [Churn Rate] > 0.20,
+            "🟠 WARNING (>20%)",
+            "🟢 HEALTHY (<20%)"
+        )
+    )
+
+Model Performance Status = 
+    IF(
+        [Model ROC AUC] >= 0.88,
+        "✅ EXCELLENT (≥0.88)",
+        IF(
+            [Model ROC AUC] >= 0.85,
+            "⚠️ GOOD (0.85-0.88)",
+            "❌ NEEDS IMPROVEMENT (<0.85)"
+        )
+    )
+
+Risk Distribution = 
+    IF(
+        [High Risk Customers] > [Low Risk Customers],
+        "⚠️ HIGH RISK DOMINATED",
+        "✅ LOW RISK MAJORITY"
+    )
+
+// ============================================================================
+// NOTES FOR DASHBOARD BUILDERS
+// ============================================================================
+/*
+HOW TO USE THESE MEASURES:
+
+1. KPI CARDS:
+   - Total Customers → [Total Customers]
+   - Churn Rate → [Churn Rate %]
+   - Model Accuracy → [Model Accuracy]
+   - Avg Churn Probability → [Avg Churn Probability]
+
+2. TABLES & MATRICES:
+   - Rows: RFM_SEGMENT, GEOGRAPHY, AGE_GROUP
+   - Values: [Total Customers], [Total Churned], [Churn Rate %]
+
+3. CHARTS:
+   - Churn by Geography Bar → [Churn Rate by Geography] vs GEOGRAPHY
+   - RFM Churn Line → [Churn Rate by Segment] vs RFM_SEGMENT
+   - Risk Distribution Pie → [High/Medium/Low Risk Customers]
+
+4. FILTERS:
+   - Apply GEOGRAPHY, RFM_SEGMENT, SENIOR_CUSTOMER for interactive analysis
+
+5. TOOLTIPS:
+   - Show [Avg Tenure], [Avg Balance], [Avg Salary] on hover
+
+6. ALERTS:
+   - Use [Churn Alert] and [Model Performance Status] as KPI card subtitles
+
+PERFORMANCE TIPS:
+- Use ALLEXCEPT() to preserve context
+- Use CALCULATE() with filters for conditional calculations
+- Avoid volatile functions in aggregations
+- Test each measure in a separate card before using in visuals
+*/

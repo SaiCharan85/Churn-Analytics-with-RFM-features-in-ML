@@ -1,16 +1,8 @@
 # Churn Analytics - Git Ignore File
 
 # ============================================================================
-# DATA & CREDENTIALS (SENSITIVE)
+# CREDENTIALS (SENSITIVE)
 # ============================================================================
-# Raw data files
-Training\ data/
-Training data/
-*.csv
-*.xlsx
-*.xls
-bank_ml_features.csv
-
 # Environment variables & secrets
 .env
 .env.local
